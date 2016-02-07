@@ -1,6 +1,7 @@
 var path = require('path'),
     rootPath = path.normalize(__dirname + '/..'),
-    env = process.env.NODE_ENV || 'development';
+    env = process.env.NODE_ENV || 'development',
+    ip = process.env.OPENSHIFT_NODEJS_IP || '127.0.0.1';
 
 var config = {
   development: {
@@ -8,8 +9,8 @@ var config = {
     app: {
       name: 'imkven-feed'
     },
-    port: 3000,
-    db: 'sqlite://localhost/imkven-feed-development',
+    port: process.env.OPENSHIFT_NODEJS_PORT || 3000,
+    db: 'sqlite://' + ip + '/imkven-feed-development',
     storage: rootPath + '/data/imkven-feed-development'
   },
 
@@ -18,8 +19,8 @@ var config = {
     app: {
       name: 'imkven-feed'
     },
-    port: 3000,
-    db: 'sqlite://localhost/imkven-feed-test',
+    port: process.env.OPENSHIFT_NODEJS_PORT || 3000,
+    db: 'sqlite://' + ip + '/imkven-feed-test',
     storage: rootPath + '/data/imkven-feed-test'
   },
 
@@ -28,8 +29,8 @@ var config = {
     app: {
       name: 'imkven-feed'
     },
-    port: 3000,
-    db: 'sqlite://localhost/imkven-feed-production',
+    port: process.env.OPENSHIFT_NODEJS_PORT || 3000,
+    db: 'sqlite://' + ip + '/imkven-feed-production',
     storage: rootPath + 'data/imkven-feed-production'
   }
 };
