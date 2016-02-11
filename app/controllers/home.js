@@ -1,23 +1,24 @@
-var express = require('express'),
-  router = express.Router(),
-  db = require('../models'),
-  request = require('request'),
-  pie = require('nodepie')
-  async = require('async');
+var express = require('express');
+var router = express.Router();
+var db = require('../models');
+var request = require('request');
+var pie = require('nodepie');
+var async = require('async');
+var cors = require('cors');
 
 module.exports = function (app) {
   app.use('/', router);
 };
 
-router.get('/', function (req, res, next) {
+router.get('/', cors(), function (req, res, next) {
   return res.status(200).json({
     ok: true
   });
 });
 
-router.get('/feed', function (req, res, next) {
+router.get('/feed', cors(), function (req, res, next) {
   var url = 'http://imkven.github.io/feed.xml';
-
+  var hasNewArticle = true;
   async.waterfall([
     function(cb) {
       db.Feed.findOrCreate({
@@ -45,6 +46,7 @@ router.get('/feed', function (req, res, next) {
             cb(err)
           });
         } else {
+          hasNewArticle = true;
           feed.set('lastModified', r.headers['last-modified']);
           feed.save()
             .then(function(updated) {
@@ -62,32 +64,38 @@ router.get('/feed', function (req, res, next) {
         var feedPie = new pie(body);
         feedPie.init();
 
-        var articles = [];
-        async.eachSeries(feedPie.getItems(), function(el, nextEach) {
-          db.Article.findOrCreate({
-            where: {
-              url: el.getPermalink()
-            },
-            defaults: {
-              title: el.getTitle(),
-              date: el.getDate(),
-              content: el.getContents(),
-            }
-          })
-          .spread(function(found, created) {
-            articles.push({
-              url: found.url,
-              title: found.title,
-              date: found.date,
-              content: found.content,
+        feed.set('title', feedPie.getTitle());
+        feed.save()
+          .then(function() {
+            var articles = [];
+            async.eachSeries(feedPie.getItems(), function(el, nextEach) {
+              db.Article.findOrCreate({
+                where: {
+                  url: el.getPermalink()
+                },
+                defaults: {
+                  title: el.getTitle(),
+                  date: el.getDate(),
+                  content: el.getContents(),
+                }
+              })
+              .spread(function(found, created) {
+                articles.push({
+                  url: found.url,
+                  title: found.title,
+                  date: found.date,
+                  content: found.content,
+                });
+                nextEach();
+              }, function(err) {
+                nextEach(err)
+              });
+            }, function(err) {
+              cb(err, feed, articles);
             });
-            nextEach();
           }, function(err) {
-            nextEach(err)
+            cb(err);
           });
-        }, function(err) {
-          cb(err, feed, articles);
-        });
       });
     }
   ], function(err, feed, articles) {
@@ -101,6 +109,8 @@ router.get('/feed', function (req, res, next) {
       ok: (statusCode === 200),
       url: feed.url,
       lastModified: feed.lastModified,
+      hasNewArticle: hasNewArticle,
+      title: feed.title,
       articles: articles
     });
   });

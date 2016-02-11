@@ -6,6 +6,9 @@ module.exports = function (sequelize, DataTypes) {
       autoIncrement: true,
       primaryKey: true
     },
+    title: {
+      type: DataTypes.STRING
+    },
     url: {
       type: DataTypes.STRING,
       unique: true
