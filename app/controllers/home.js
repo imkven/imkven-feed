@@ -36,16 +36,23 @@ router.get('/feed', function (req, res, next) {
       request.head(feed.url, function(err, r) {
         if (err) return cb(err);
         if (feed.lastModified === r.headers['last-modified']) {
-          return cb(true, feed)
-        }
-
-        feed.set('lastModified', r.headers['last-modified']);
-        feed.save()
-          .then(function(updated) {
-            cb(null, updated);
+          db.Article.findAll({
+            order: [['date', 'DESC']]
+          })
+          .then(function(articles) {
+            cb(true, feed, articles)
           }, function(err) {
-            cb(err);
+            cb(err)
           });
+        } else {
+          feed.set('lastModified', r.headers['last-modified']);
+          feed.save()
+            .then(function(updated) {
+              cb(null, updated);
+            }, function(err) {
+              cb(err);
+            });
+        }
       });
     },
 
@@ -84,23 +91,14 @@ router.get('/feed', function (req, res, next) {
       });
     }
   ], function(err, feed, articles) {
-    if (err === true) {
-      return res.status(200).json({
-        ok: true,
-        url: feed.url,
-        lastModified: feed.lastModified
-      });
-    }
-
+    var statusCode = 200;
     if (err) {
       console.log('err', err);
-      return res.status(400).json({
-        ok: false
-      });
+      statusCode = 400;
     }
 
-    return res.status(200).json({
-      ok: true,
+    return res.status(statusCode).json({
+      ok: (statusCode === 200),
       url: feed.url,
       lastModified: feed.lastModified,
       articles: articles
